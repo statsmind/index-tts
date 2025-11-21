@@ -166,6 +166,40 @@ async def list_files():
     files.sort(key=lambda x: x["created_time"], reverse=True)
     return files
 
+# 下载上传文件端点
+@app.get("/download/{filename}")
+async def download_file(filename: str):
+    # 防止路径遍历攻击
+    if ".." in filename or filename.startswith("/"):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    # 构造安全的文件路径
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    # 规范化路径并确保它在预期的目录中
+    safe_path = os.path.normpath(file_path)
+    if not safe_path.startswith(os.path.normpath(UPLOAD_DIR) + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    # 检查文件是否存在
+    if not os.path.exists(safe_path):
+        raise HTTPException(status_code=404, detail=f"File {filename} not found")
+    
+    # 检查是否为文件
+    if not os.path.isfile(safe_path):
+        raise HTTPException(status_code=400, detail=f"{filename} is not a file")
+    
+    # 检查文件扩展名是否为WAV格式
+    if not filename.lower().endswith(".wav"):
+        raise HTTPException(status_code=400, detail="Only WAV files can be downloaded")
+    
+    # 返回文件响应
+    return FileResponse(
+        path=safe_path,
+        media_type="audio/wav",
+        filename=filename
+    )
+
 # TTS 合成端点（需要参考音频）
 @app.post("/tts")
 async def tts_synthesis(request: TTSRequest):

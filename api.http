@@ -1,117 +1,83 @@
-### IndexTTS API Test Cases
+# IndexTTS API HTTP Client Examples
 
-## Health Check
+
+# @name Health Check
 GET http://localhost:18000/health
 
 ###
 
-## Get Model Info
+# @name Get Model Info
 GET http://localhost:18000/info
 
 ###
 
-## Upload Speaker Reference Audio
+# @name Upload Audio File
 POST http://localhost:18000/upload
-Content-Type: multipart/form-data; boundary=boundary
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
---boundary
-Content-Disposition: form-data; name="file"; filename="speaker_reference.wav"
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="sample.wav"
 Content-Type: audio/wav
 
-< ./examples/voice_01.wav
---boundary--
+< ./sample.wav
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ###
 
-## Upload Emotion Reference Audio
-POST http://localhost:18000/upload
-Content-Type: multipart/form-data; boundary=boundary
-
---boundary
-Content-Disposition: form-data; name="file"; filename="emotion_reference.wav"
-Content-Type: audio/wav
-
-< ./examples/emo_sad.wav
---boundary--
-
-###
-
-## List Uploaded Files
+# @name List Uploaded Files
 GET http://localhost:18000/list
 
 ###
 
-## TTS Synthesis - Basic Voice Cloning
+# @name Download Audio File
+GET http://localhost:18000/download/{{filename}}
+
+###
+
+# @name TTS Synthesis with Speaker Only
 POST http://localhost:18000/tts
 Content-Type: application/json
 
 {
-  "spk_audio_prompt": "abcd1234.wav",
-  "text": "Hello, this is a cloned voice demonstration."
+  "text": "Hello, this is a text to speech demonstration.",
+  "spk_audio_prompt": "reference.wav"
 }
 
 ###
 
-## TTS Synthesis - With Emotion Audio Prompt
+# @name TTS Synthesis with Emotion Control
 POST http://localhost:18000/tts
 Content-Type: application/json
 
 {
-  "spk_audio_prompt": "abcd1234.wav",
-  "emo_audio_prompt": "efgh5678.wav",
-  "emo_alpha": 0.9,
-  "text": "This speech has emotional influence from the prompt."
+  "text": "This speech has emotional influence from the prompt.",
+  "spk_audio_prompt": "speaker.wav",
+  "emo_audio_prompt": "emotion.wav",
+  "emo_alpha": 0.9
 }
 
 ###
 
-## TTS Synthesis - With Emotion Vector
+# @name TTS Synthesis with Emotion Vector
 POST http://localhost:18000/tts
 Content-Type: application/json
 
 {
-  "spk_audio_prompt": "abcd1234.wav",
-  "emo_vector": [0, 0, 0.5, 0, 0, 0, 0, 0],
-  "text": "This speech expresses sadness as indicated by the emotion vector."
+  "text": "This speech expresses specific emotions.",
+  "spk_audio_prompt": "speaker.wav",
+  "emo_vector": [0, 0, 0.5, 0, 0, 0, 0, 0]
 }
 
 ###
 
-## TTS Synthesis - Text-Based Emotion Control
+# @name TTS Synthesis with Text-Based Emotion
 POST http://localhost:18000/tts
 Content-Type: application/json
 
 {
-  "spk_audio_prompt": "abcd1234.wav",
+  "text": "I am so thrilled about this amazing opportunity!",
+  "spk_audio_prompt": "speaker.wav",
   "use_emo_text": true,
   "emo_text": "This person is very excited and happy",
-  "emo_alpha": 0.6,
-  "text": "I am so thrilled about this amazing opportunity!"
-}
-
-###
-
-## TTS Synthesis - Advanced Parameters
-POST http://localhost:18000/tts
-Content-Type: application/json
-
-{
-  "spk_audio_prompt": "abcd1234.wav",
-  "text": "Advanced parameter control example",
-  "temperature": 0.9,
-  "top_p": 0.9,
-  "do_sample": true
-}
-
-###
-
-## TTS Synthesis - Random Sampling
-POST http://localhost:18000/tts
-Content-Type: application/json
-
-{
-  "spk_audio_prompt": "abcd1234.wav",
-  "use_random": true,
-  "temperature": 1.0,
-  "text": "This synthesis uses random sampling for variation."
+  "emo_alpha": 0.6
 }
