@@ -55,6 +55,8 @@ tts = IndexTTS2(
     use_cuda_kernel=args.cuda_kernel,
 )
 
+print("TTS models have been loaded")
+
 app = FastAPI(title="IndexTTS API", description="IndexTTS Text-to-Speech API", version="2.0")
 
 # 添加 CORS 支持
