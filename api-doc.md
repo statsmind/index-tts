@@ -1,6 +1,6 @@
-的# IndexTTS API Documentation
+# IndexTTS API Documentation
 
-IndexTTS provides a RESTful API for text-to-speech synthesis with advanced emotional control capabilities. This document describes the available endpoints, parameters, and usage examples.
+IndexTTS 提供了 RESTful API 来实现具有高级情感控制功能的文本转语音服务。本文档描述了可用的端点、参数和使用示例。
 
 docker 容器使用 18000 映射到 8000 端口
 
@@ -26,39 +26,40 @@ docker 容器使用 18000 映射到 8000 端口
 
 ## Base URL
 
-All API endpoints are relative to the base URL where the service is hosted:
+所有 API 端点都是相对于服务托管的基本 URL：
+
 ```
 http://localhost:18000
 ```
 
-The port can be configured when starting the API server.
+启动 API 服务器时可以配置端口。
 
 ## Common Parameters
 
-These are the common parameters used across different TTS endpoints:
+这些是跨不同 TTS 端点使用的通用参数：
 
-| Parameter | Type | Description | Default |
+| 参数 | 类型 | 描述 | 默认值 |
 |-----------|------|-------------|---------|
-| `spk_audio_prompt` | string | Path to speaker audio prompt for voice cloning (required) | N/A |
-| `text` | string | Text to synthesize (required) | N/A |
-| `emo_audio_prompt` | string | Path to emotional audio prompt (optional) | None |
-| `emo_alpha` | float | Emotion blending factor (0.0-1.0) | 1.0 |
-| `use_random` | boolean | Enable random sampling | false |
-| `use_emo_text` | boolean | Enable text-based emotion control | false |
-| `emo_text` | string | Text for emotion control when use_emo_text=true | None |
-| `emo_vector` | array/string | Emotion vector (8 floats) | None |
+| `spk_audio_prompt` | 字符串 | 用于语音克隆的说话人音频提示（必填） | N/A |
+| `text` | 字符串 | 要合成的文本（必填） | N/A |
+| `emo_audio_prompt` | 字符串 | 情感音频提示（可选） | None |
+| `emo_alpha` | 浮点数 | 情感混合因子（0.0-1.0） | 1.0 |
+| `use_random` | 布尔值 | 启用随机采样 | false |
+| `use_emo_text` | 布尔值 | 启用基于文本的情感控制 | false |
+| `emo_text` | 字符串 | 当 use_emo_text=true 时用于情感控制的文本 | None |
+| `emo_vector` | 数组/字符串 | 情感向量（8个浮点数） | None |
 
 ## Endpoints
 
 ### Health Check
 
-Check if the API service is running.
+检查 API 服务是否正在运行。
 
 ```
 GET /health
 ```
 
-**Response:**
+**响应:**
 ```json
 {
   "status": "ok"
@@ -67,13 +68,13 @@ GET /health
 
 ### Model Info
 
-Get information about the loaded model.
+获取加载模型的信息。
 
 ```
 GET /info
 ```
 
-**Response:**
+**响应:**
 ```json
 {
   "model_version": "2.0",
@@ -83,20 +84,20 @@ GET /info
 
 ### Upload Audio File
 
-Upload an audio file for use as a speaker or emotion reference.
+上传一个音频文件作为说话人或情感参考。
 
 ```
 POST /upload
 Content-Type: multipart/form-data
 ```
 
-**Parameters:**
+**参数:**
 
-| Parameter | Type | Required | Description |
+| 参数 | 类型 | 必填 | 描述 |
 |-----------|------|----------|-------------|
-| `file` | file | Yes | Audio file to upload (WAV format recommended) |
+| `file` | 文件 | 是 | 要上传的音频文件（推荐 WAV 格式） |
 
-**Response:**
+**响应:**
 ```json
 {
   "filename": "unique_hash.wav",
@@ -104,17 +105,17 @@ Content-Type: multipart/form-data
 }
 ```
 
-Files are automatically deduplicated based on content hash. If the same file is uploaded multiple times, the existing path will be returned.
+文件会根据内容哈希自动去重。如果多次上传相同文件，将返回现有路径。
 
 ### List Audio Files
 
-Get a list of uploaded audio files sorted by creation time (newest first).
+获取按创建时间排序（最新的优先）的已上传音频文件列表。
 
 ```
 GET /list
 ```
 
-**Response:**
+**响应:**
 ```json
 [
   {
@@ -126,16 +127,58 @@ GET /list
 ]
 ```
 
+### Download Audio File
+
+下载指定的音频文件。
+
+```
+GET /download/{filename}
+```
+
+**路径参数:**
+
+| 参数名 | 类型 | 必填 | 描述 |
+|--------|------|------|------|
+| `filename` | string | 是 | 要下载的音频文件名 |
+
+**响应:**
+成功时返回音频文件（WAV格式）
+
+**错误响应:**
+- 400: 文件名无效或不是WAV文件
+- 404: 文件不存在
+
+**使用示例:**
+
+使用 curl 下载音频文件:
+```bash
+curl -X GET "http://localhost:18000/download/sample.wav" \
+  -o downloaded_sample.wav
+```
+
+使用 Python requests 下载音频文件:
+```python
+import requests
+
+response = requests.get("http://localhost:18000/download/sample.wav")
+if response.status_code == 200:
+    with open("downloaded_sample.wav", "wb") as f:
+        f.write(response.content)
+    print("文件下载成功")
+else:
+    print(f"下载失败: {response.status_code} - {response.text}")
+```
+
 ### TTS Synthesis
 
-Synthesize speech using JSON body parameters.
+使用 JSON 正文参数合成语音。
 
 ```
 POST /tts
 Content-Type: application/json
 ```
 
-**Request Body (application/json):**
+**请求正文 (application/json):**
 
 ```json
 {
@@ -159,46 +202,52 @@ Content-Type: application/json
 }
 ```
 
-**Parameters:**
+**参数:**
 
-| Parameter | Type | Required | Description |
+| 参数 | 类型 | 必填 | 描述 |
 |-----------|------|----------|-------------|
-| `spk_audio_prompt` | string | Yes | Path to speaker reference audio (from upload) |
-| `text` | string | Yes | Text to synthesize |
-| `emo_audio_prompt` | string | No | Path to emotional reference audio (from upload) |
-| `emo_alpha` | float | No | Emotion blending factor (0.0-1.0) |
-| `use_random` | boolean | No | Enable random sampling |
-| `use_emo_text` | boolean | No | Enable text-based emotion control |
-| `emo_text` | string | No | Text for emotion control |
-| `emo_vector` | array | No | Emotion vector (8 values) |
-| `do_sample` | boolean | No | Enable sampling |
-| `top_p` | float | No | Nucleus sampling probability |
-| `top_k` | integer | No | Top-K sampling |
-| `temperature` | float | No | Sampling temperature |
-| `length_penalty` | float | No | Length penalty for beam search |
-| `num_beams` | integer | No | Number of beams for beam search |
-| `repetition_penalty` | float | No | Repetition penalty |
-| `max_mel_tokens` | integer | No | Maximum mel tokens |
-| `max_text_tokens_per_segment` | integer | No | Maximum text tokens per segment |
+| `spk_audio_prompt` | 字符串 | 是 | 说话人参考音频路径（来自上传） |
+| `text` | 字符串 | 是 | 要合成的文本 |
+| `emo_audio_prompt` | 字符串 | 否 | 情感参考音频路径（来自上传） |
+| `emo_alpha` | 浮点数 | 否 | 情感混合因子（0.0-1.0） |
+| `use_random` | 布尔值 | 否 | 启用随机采样 |
+| `use_emo_text` | 布尔值 | 否 | 启用基于文本的情感控制 |
+| `emo_text` | 字符串 | 否 | 用于情感控制的文本 |
+| `emo_vector` | 数组 | 否 | 情感向量（8个值） |
+| `do_sample` | 布尔值 | 否 | 启用采样 |
+| `top_p` | 浮点数 | 否 | 核采样概率 |
+| `top_k` | 整数 | 否 | Top-K 采样 |
+| `temperature` | 浮点数 | 否 | 采样温度 |
+| `length_penalty` | 浮点数 | 否 | 波束搜索长度惩罚 |
+| `num_beams` | 整数 | 否 | 波束搜索数量 |
+| `repetition_penalty` | 浮点数 | 否 | 重复惩罚 |
+| `max_mel_tokens` | 整数 | 否 | 最大 mel 标记数 |
+| `max_text_tokens_per_segment` | 整数 | 否 | 每段最大文本标记数 |
 
-**Response:**
-Audio file in WAV format
+**响应:**
+```json
+{
+  "message": "TTS synthesis completed successfully",
+  "file_path": "/app/outputs/tts_timestamp.wav",
+  "filename": "tts_timestamp.wav"
+}
+```
 
 ## Usage Examples
 
 ### Upload Reference Audio
 
-First, upload your reference audio files:
+首先，上传您的参考音频文件：
 
 ```bash
-# Upload speaker reference
+# 上传说话人参考
 curl -X POST "http://localhost:18000/upload" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
   -F "file=@examples/voice_01.wav"
 ```
 
-Expected response:
+预期响应：
 ```json
 {
   "filename": "abcd1234.wav",
@@ -207,14 +256,14 @@ Expected response:
 ```
 
 ```bash
-# Upload emotion reference
+# 上传情感参考
 curl -X POST "http://localhost:18000/upload" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
   -F "file=@examples/emo_sad.wav"
 ```
 
-Expected response:
+预期响应：
 ```json
 {
   "filename": "efgh5678.wav",
@@ -224,7 +273,7 @@ Expected response:
 
 ### Basic Voice Cloning
 
-Clone a voice using a reference audio sample:
+使用参考音频样本克隆声音：
 
 ```bash
 curl -X POST "http://localhost:18000/tts" \
@@ -232,13 +281,13 @@ curl -X POST "http://localhost:18000/tts" \
   -H "Content-Type: application/json" \
   -d '{
     "spk_audio_prompt": "abcd1234.wav",
-    "text": "Hello, this is a cloned voice demonstration."
+    "text": "你好，这是一个克隆声音的演示。"
   }'
 ```
 
 ### Emotion Control with Audio Prompt
 
-Control emotion using a separate emotional reference audio:
+使用单独的情感参考音频控制情感：
 
 ```bash
 curl -X POST "http://localhost:18000/tts" \
@@ -248,13 +297,13 @@ curl -X POST "http://localhost:18000/tts" \
     "spk_audio_prompt": "abcd1234.wav",
     "emo_audio_prompt": "efgh5678.wav",
     "emo_alpha": 0.9,
-    "text": "This speech has emotional influence from the prompt."
+    "text": "这个语音受到了提示中情感的影响。"
   }'
 ```
 
 ### Emotion Control with Vector
 
-Control emotion using a numerical emotion vector:
+使用数值情感向量控制情感：
 
 ```bash
 curl -X POST "http://localhost:18000/tts" \
@@ -263,13 +312,13 @@ curl -X POST "http://localhost:18000/tts" \
   -d '{
     "spk_audio_prompt": "abcd1234.wav",
     "emo_vector": [0, 0, 0.5, 0, 0, 0, 0, 0],
-    "text": "This speech expresses sadness as indicated by the emotion vector."
+    "text": "这个语音表达了悲伤情绪，这是由情感向量指示的。"
   }'
 ```
 
 ### Text-Based Emotion Control
 
-Control emotion using descriptive text:
+使用描述性文本控制情感：
 
 ```bash
 curl -X POST "http://localhost:18000/tts" \
@@ -278,15 +327,15 @@ curl -X POST "http://localhost:18000/tts" \
   -d '{
     "spk_audio_prompt": "abcd1234.wav",
     "use_emo_text": true,
-    "emo_text": "This person is very excited and happy",
+    "emo_text": "这个人非常兴奋和快乐",
     "emo_alpha": 0.6,
-    "text": "I am so thrilled about this amazing opportunity!"
+    "text": "我对这个绝佳的机会感到非常激动！"
   }'
 ```
 
 ### Advanced Synthesis with JSON
 
-Full control over synthesis parameters using JSON:
+使用 JSON 完全控制合成参数：
 
 ```bash
 curl -X POST "http://localhost:18000/tts" \
@@ -294,7 +343,7 @@ curl -X POST "http://localhost:18000/tts" \
   -H "Content-Type: application/json" \
   -d '{
     "spk_audio_prompt": "abcd1234.wav",
-    "text": "Advanced parameter control example",
+    "text": "高级参数控制示例",
     "temperature": 0.9,
     "top_p": 0.9,
     "do_sample": true
@@ -303,7 +352,7 @@ curl -X POST "http://localhost:18000/tts" \
 
 ### Random Sampling
 
-Enable random sampling for more varied outputs:
+启用随机采样以获得更多样化的输出：
 
 ```bash
 curl -X POST "http://localhost:18000/tts" \
@@ -313,23 +362,23 @@ curl -X POST "http://localhost:18000/tts" \
     "spk_audio_prompt": "abcd1234.wav",
     "use_random": true,
     "temperature": 1.0,
-    "text": "This synthesis uses random sampling for variation."
+    "text": "此合成使用随机采样来产生变化。"
   }'
 ```
 
 ## Error Handling
 
-The API uses standard HTTP status codes:
+API 使用标准 HTTP 状态码：
 
-| Status Code | Description |
+| 状态码 | 描述 |
 |-------------|-------------|
-| 200 | Success |
-| 400 | Bad Request - Missing required parameters or invalid values |
-| 500 | Internal Server Error - Synthesis failed |
+| 200 | 成功 |
+| 400 | 错误请求 - 缺少必要参数或值无效 |
+| 500 | 内部服务器错误 - 合成失败 |
 
-Error responses follow this format:
+错误响应遵循以下格式：
 ```json
 {
-  "detail": "Error message describing what went wrong"
+  "detail": "描述出错原因的错误消息"
 }
 ```
