@@ -1,0 +1,117 @@
+### IndexTTS API Test Cases
+
+## Health Check
+GET http://localhost:18000/health
+
+###
+
+## Get Model Info
+GET http://localhost:18000/info
+
+###
+
+## Upload Speaker Reference Audio
+POST http://localhost:18000/upload
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="speaker_reference.wav"
+Content-Type: audio/wav
+
+< ./examples/voice_01.wav
+--boundary--
+
+###
+
+## Upload Emotion Reference Audio
+POST http://localhost:18000/upload
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="emotion_reference.wav"
+Content-Type: audio/wav
+
+< ./examples/emo_sad.wav
+--boundary--
+
+###
+
+## List Uploaded Files
+GET http://localhost:18000/list
+
+###
+
+## TTS Synthesis - Basic Voice Cloning
+POST http://localhost:18000/tts
+Content-Type: application/json
+
+{
+  "spk_audio_prompt": "abcd1234.wav",
+  "text": "Hello, this is a cloned voice demonstration."
+}
+
+###
+
+## TTS Synthesis - With Emotion Audio Prompt
+POST http://localhost:18000/tts
+Content-Type: application/json
+
+{
+  "spk_audio_prompt": "abcd1234.wav",
+  "emo_audio_prompt": "efgh5678.wav",
+  "emo_alpha": 0.9,
+  "text": "This speech has emotional influence from the prompt."
+}
+
+###
+
+## TTS Synthesis - With Emotion Vector
+POST http://localhost:18000/tts
+Content-Type: application/json
+
+{
+  "spk_audio_prompt": "abcd1234.wav",
+  "emo_vector": [0, 0, 0.5, 0, 0, 0, 0, 0],
+  "text": "This speech expresses sadness as indicated by the emotion vector."
+}
+
+###
+
+## TTS Synthesis - Text-Based Emotion Control
+POST http://localhost:18000/tts
+Content-Type: application/json
+
+{
+  "spk_audio_prompt": "abcd1234.wav",
+  "use_emo_text": true,
+  "emo_text": "This person is very excited and happy",
+  "emo_alpha": 0.6,
+  "text": "I am so thrilled about this amazing opportunity!"
+}
+
+###
+
+## TTS Synthesis - Advanced Parameters
+POST http://localhost:18000/tts
+Content-Type: application/json
+
+{
+  "spk_audio_prompt": "abcd1234.wav",
+  "text": "Advanced parameter control example",
+  "temperature": 0.9,
+  "top_p": 0.9,
+  "do_sample": true
+}
+
+###
+
+## TTS Synthesis - Random Sampling
+POST http://localhost:18000/tts
+Content-Type: application/json
+
+{
+  "spk_audio_prompt": "abcd1234.wav",
+  "use_random": true,
+  "temperature": 1.0,
+  "text": "This synthesis uses random sampling for variation."
+}

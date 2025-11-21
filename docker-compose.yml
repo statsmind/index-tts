@@ -9,6 +9,7 @@ services:
     volumes:
       - /mnt/sda/indextts/checkpoints:/app/checkpoints
       - /mnt/sda/indextts/outputs:/app/outputs
+      - /mnt/sda/indextts/uploads:/app/uploads
       - /mnt/sda/indextts/prompts:/app/prompts
     environment:
       - PYTHONPATH=/app

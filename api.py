@@ -4,6 +4,7 @@ import time
 import argparse
 import tempfile
 import uvicorn
+import hashlib
 from typing import Optional, List
 from pydantic import BaseModel
 import numpy as np
@@ -68,6 +69,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 创建上传目录
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 # 定义请求模型
 class TTSRequest(BaseModel):
     text: str
@@ -85,6 +90,18 @@ class TTSRequest(BaseModel):
     repetition_penalty: float = 10.0
     max_mel_tokens: int = 1500
     max_text_tokens_per_segment: int = 120
+    spk_audio_prompt: str
+    emo_audio_prompt: Optional[str] = None
+
+# 文件信息模型
+class FileInfo(BaseModel):
+    filename: str
+    path: str
+    created_time: float
+
+# 计算文件哈希值
+def calculate_file_hash(file_content: bytes) -> str:
+    return hashlib.sha256(file_content).hexdigest()
 
 # 健康检查端点
 @app.get("/health")
@@ -99,98 +116,72 @@ async def info():
         "model_dir": args.model_dir
     }
 
+# 上传音频文件端点
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    # 读取文件内容
+    file_content = await file.read()
+    
+    # 计算文件哈希值用于去重
+    file_hash = calculate_file_hash(file_content)
+    
+    # 构造文件名和路径
+    file_extension = os.path.splitext(file.filename)[1] if file.filename else ".wav"
+    unique_filename = f"{file_hash}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    # 检查文件是否已经存在
+    if os.path.exists(file_path):
+        # 文件已存在，直接返回已有路径
+        relative_path = os.path.relpath(file_path, UPLOAD_DIR).replace("\\", "/")
+        return {"filename": unique_filename, "path": relative_path}
+    
+    # 保存新文件
+    with open(file_path, "wb") as buffer:
+        buffer.write(file_content)
+    
+    # 返回相对路径
+    relative_path = os.path.relpath(file_path, UPLOAD_DIR).replace("\\", "/")
+    return {"filename": unique_filename, "path": relative_path}
+
+# 列出上传文件端点
+@app.get("/list")
+async def list_files():
+    files = []
+    for filename in os.listdir(UPLOAD_DIR):
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        if os.path.isfile(file_path):
+            created_time = os.path.getctime(file_path)
+            relative_path = os.path.relpath(file_path, UPLOAD_DIR).replace("\\", "/")
+            files.append({
+                "filename": filename,
+                "path": relative_path,
+                "created_time": created_time
+            })
+    
+    # 按创建时间倒序排列
+    files.sort(key=lambda x: x["created_time"], reverse=True)
+    return files
+
 # TTS 合成端点（需要参考音频）
 @app.post("/tts")
-async def tts_synthesis(
-    spk_audio_prompt: UploadFile = File(...),
-    text: str = "",
-    emo_audio_prompt: Optional[UploadFile] = File(None),
-    emo_alpha: float = 1.0,
-    use_random: bool = False,
-    use_emo_text: bool = False,
-    emo_text: Optional[str] = None,
-    emo_vector: Optional[str] = None,  # 以逗号分隔的字符串形式传入
-):
-    if not text:
-        raise HTTPException(status_code=400, detail="Text is required")
-    
-    # 保存上传的音频文件
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as spk_tmp:
-        spk_tmp.write(await spk_audio_prompt.read())
-        spk_audio_path = spk_tmp.name
-    
-    emo_audio_path = None
-    if emo_audio_prompt:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as emo_tmp:
-            emo_tmp.write(await emo_audio_prompt.read())
-            emo_audio_path = emo_tmp.name
-    
-    # 处理情感向量
-    emo_vec = None
-    if emo_vector:
-        try:
-            emo_vec = [float(x) for x in emo_vector.split(",")]
-            if len(emo_vec) != 8:
-                raise ValueError("Emotion vector must contain exactly 8 values")
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid emotion vector: {str(e)}")
-    
-    # 生成输出文件路径
-    output_path = os.path.join("outputs", f"tts_{int(time.time())}.wav")
-    os.makedirs("outputs", exist_ok=True)
-    
-    try:
-        # 设置参数
-        kwargs = {
-            "do_sample": True,
-            "top_p": 0.8,
-            "top_k": 30,
-            "temperature": 0.8,
-            "length_penalty": 0.0,
-            "num_beams": 3,
-            "repetition_penalty": 10.0,
-            "max_mel_tokens": 1500,
-        }
-        
-        # 调用合成函数
-        tts.infer(
-            spk_audio_prompt=spk_audio_path,
-            text=text,
-            output_path=output_path,
-            emo_audio_prompt=emo_audio_path,
-            emo_alpha=emo_alpha,
-            emo_vector=emo_vec,
-            use_emo_text=use_emo_text,
-            emo_text=emo_text,
-            use_random=use_random,
-            verbose=True,
-            max_text_tokens_per_segment=120,
-            **kwargs
-        )
-        
-        # 返回生成的音频文件
-        return FileResponse(output_path, media_type="audio/wav", filename="generated.wav")
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {str(e)}")
-    
-    finally:
-        # 清理临时文件
-        if os.path.exists(spk_audio_path):
-            os.unlink(spk_audio_path)
-        if emo_audio_path and os.path.exists(emo_audio_path):
-            os.unlink(emo_audio_path)
-
-# TTS 合成端点（JSON 请求体）
-@app.post("/tts_json")
-async def tts_synthesis_json(request: TTSRequest, spk_audio_prompt: UploadFile = File(...)):
+async def tts_synthesis(request: TTSRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="Text is required")
     
-    # 保存上传的音频文件
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as spk_tmp:
-        spk_tmp.write(await spk_audio_prompt.read())
-        spk_audio_path = spk_tmp.name
+    # 构建完整音频文件路径
+    spk_audio_path = os.path.join(UPLOAD_DIR, request.spk_audio_prompt)
+    if not os.path.exists(spk_audio_path):
+        raise HTTPException(status_code=400, detail=f"Speaker audio file not found: {request.spk_audio_prompt}")
+    
+    emo_audio_path = None
+    if request.emo_audio_prompt:
+        emo_audio_path = os.path.join(UPLOAD_DIR, request.emo_audio_prompt)
+        if not os.path.exists(emo_audio_path):
+            raise HTTPException(status_code=400, detail=f"Emotion audio file not found: {request.emo_audio_prompt}")
     
     # 生成输出文件路径
     output_path = os.path.join("outputs", f"tts_{int(time.time())}.wav")
@@ -214,6 +205,7 @@ async def tts_synthesis_json(request: TTSRequest, spk_audio_prompt: UploadFile =
             spk_audio_prompt=spk_audio_path,
             text=request.text,
             output_path=output_path,
+            emo_audio_prompt=emo_audio_path,
             emo_alpha=request.emo_alpha,
             emo_vector=request.emo_vector,
             use_emo_text=request.use_emo_text,
@@ -229,11 +221,6 @@ async def tts_synthesis_json(request: TTSRequest, spk_audio_prompt: UploadFile =
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {str(e)}")
-    
-    finally:
-        # 清理临时文件
-        if os.path.exists(spk_audio_path):
-            os.unlink(spk_audio_path)
 
 if __name__ == "__main__":
     uvicorn.run(app, host=args.host, port=args.port)
