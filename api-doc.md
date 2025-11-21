@@ -14,6 +14,7 @@ docker 容器使用 18000 映射到 8000 端口
   - [Model Info](#model-info)
   - [Upload Audio File](#upload-audio-file)
   - [List Audio Files](#list-audio-files)
+  - [Download Audio File](#download-audio-file)
   - [TTS Synthesis](#tts-synthesis)
 - [Usage Examples](#usage-examples)
   - [Upload Reference Audio](#upload-reference-audio)

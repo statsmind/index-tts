@@ -217,9 +217,11 @@ async def tts_synthesis(request: TTSRequest):
         if not os.path.exists(emo_audio_path):
             raise HTTPException(status_code=400, detail=f"Emotion audio file not found: {request.emo_audio_prompt}")
     
-    # 生成输出文件路径
-    output_path = os.path.join("outputs", f"tts_{int(time.time())}.wav")
-    os.makedirs("outputs", exist_ok=True)
+    # 生成输出文件路径 (在 /app/outputs 目录下)
+    outputs_dir = os.path.join("/app", "outputs")
+    os.makedirs(outputs_dir, exist_ok=True)
+    filename = f"tts_{int(time.time())}.wav"
+    output_path = os.path.join(outputs_dir, filename)
     
     try:
         # 设置参数
@@ -250,8 +252,12 @@ async def tts_synthesis(request: TTSRequest):
             **kwargs
         )
         
-        # 返回生成的音频文件
-        return FileResponse(output_path, media_type="audio/wav", filename="generated.wav")
+        # 返回生成的音频文件路径
+        return {
+            "message": "TTS synthesis completed successfully",
+            "file_path": f"/app/outputs/{filename}",
+            "filename": filename
+        }
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {str(e)}")
