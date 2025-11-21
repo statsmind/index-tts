@@ -1,33 +1,11 @@
 version: '3.8'
 
 services:
-  #indextts-api:
-  #  build: .
-  #  container_name: indextts-api
-  #  ports:
-  #    - "18000:8000"
-  #    - "17860:7860"
-  #  volumes:
-  #    - /mnt/sda/indextts/checkpoints:/app/checkpoints
-  #    - /mnt/sda/indextts/outputs:/app/outputs
-  #    - /mnt/sda/indextts/prompts:/app/prompts
-  #  environment:
-  #    - PYTHONPATH=/app
-  #    - HF_ENDPOINT=https://hf-mirror.com
-  #  command: uv run api.py --host 0.0.0.0 --port 8000
-  #  deploy:
-  #    resources:
-  #      reservations:
-  #        devices:
-  #          - driver: nvidia
-  #            count: 1
-  #            capabilities: [gpu]
-
-  indextts-webui:
+  indextts-api:
     build: .
-    container_name: indextts-webui
+    container_name: indextts-api
     ports:
-      - "17861:7860"
+      - "18000:8000"
     volumes:
       - /mnt/sda/indextts/checkpoints:/app/checkpoints
       - /mnt/sda/indextts/outputs:/app/outputs
@@ -35,7 +13,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - HF_ENDPOINT=https://hf-mirror.com
-    command: uv run webui.py --host 0.0.0.0 --port 7860
+    command: uv run api.py --host 0.0.0.0 --port 8000
     deploy:
       resources:
         reservations:
@@ -43,3 +21,24 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+  #indextts-webui:
+  #  build: .
+  #  container_name: indextts-webui
+  #  ports:
+  #    - "17861:7860"
+  #  volumes:
+  #    - /mnt/sda/indextts/checkpoints:/app/checkpoints
+  #    - /mnt/sda/indextts/outputs:/app/outputs
+  #    - /mnt/sda/indextts/prompts:/app/prompts
+  #  environment:
+  #    - PYTHONPATH=/app
+  #    - HF_ENDPOINT=https://hf-mirror.com
+  #  command: uv run webui.py --host 0.0.0.0 --port 7860
+  #  deploy:
+  #    resources:
+  #      reservations:
+  #        devices:
+  #          - driver: nvidia
+  #            count: 1
+  #            capabilities: [gpu]
