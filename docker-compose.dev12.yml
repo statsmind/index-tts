@@ -2,15 +2,15 @@ version: '3.8'
 
 services:
   indextts-api:
-    image: statsmind/indextts
+    build: .
     container_name: indextts-api
     ports:
       - "18000:8000"
     volumes:
-      - /opt/indextts/checkpoints:/app/checkpoints
-      - /opt/indextts/outputs:/app/outputs
-      - /opt/indextts/uploads:/app/uploads
-      - /opt/indextts/prompts:/app/prompts
+      - /mnt/sda/indextts/checkpoints:/app/checkpoints
+      - /mnt/sda/indextts/outputs:/app/outputs
+      - /mnt/sda/indextts/uploads:/app/uploads
+      - /mnt/sda/indextts/prompts:/app/prompts
       - ./api.py:/app/api.py
     environment:
       - PYTHONPATH=/app

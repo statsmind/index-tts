@@ -3,8 +3,6 @@ import sys
 import time
 import argparse
 import tempfile
-import traceback
-
 import uvicorn
 import hashlib
 from typing import Optional, List
@@ -24,7 +22,7 @@ sys.path.append(os.path.join(current_dir, "indextts"))
 parser = argparse.ArgumentParser(description="IndexTTS API Server")
 parser.add_argument("--port", type=int, default=8000, help="Port to run the API server on")
 parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to run the API server on")
-parser.add_argument("--model_dir", type=str, default="checkpoints", help="Model checkpoints directory")
+parser.add_argument("--model_dir", type=str, default="./checkpoints", help="Model checkpoints directory")
 parser.add_argument("--fp16", action="store_true", default=False, help="Use FP16 for inference if available")
 parser.add_argument("--deepspeed", action="store_true", default=False, help="Use DeepSpeed to accelerate if available")
 parser.add_argument("--cuda_kernel", action="store_true", default=False, help="Use CUDA kernel for inference if available")
@@ -56,7 +54,6 @@ tts = IndexTTS2(
     use_fp16=args.fp16,
     use_deepspeed=args.deepspeed,
     use_cuda_kernel=args.cuda_kernel,
-    use_torch_compile=True
 )
 
 print("TTS models have been loaded")
@@ -169,20 +166,39 @@ async def list_files():
     files.sort(key=lambda x: x["created_time"], reverse=True)
     return files
 
-# 下载文件端点
+# 下载上传文件端点
 @app.get("/download/{filename}")
 async def download_file(filename: str):
+    # 防止路径遍历攻击
+    if ".." in filename or filename.startswith("/"):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    # 构造安全的文件路径
     file_path = os.path.join(UPLOAD_DIR, filename)
-    
+
+    # 规范化路径并确保它在预期的目录中
+    safe_path = os.path.normpath(file_path)
+    if not safe_path.startswith(os.path.normpath(UPLOAD_DIR) + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     # 检查文件是否存在
-    if not os.path.exists(file_path):
+    if not os.path.exists(safe_path):
         raise HTTPException(status_code=404, detail=f"File {filename} not found")
-    
+
     # 检查是否为文件
-    if not os.path.isfile(file_path):
+    if not os.path.isfile(safe_path):
         raise HTTPException(status_code=400, detail=f"{filename} is not a file")
-    
-    return FileResponse(file_path, media_type="application/octet-stream", filename=filename)
+
+    # 检查文件扩展名是否为WAV格式
+    if not filename.lower().endswith(".wav"):
+        raise HTTPException(status_code=400, detail="Only WAV files can be downloaded")
+
+    # 返回文件响应
+    return FileResponse(
+        path=safe_path,
+        media_type="audio/wav",
+        filename=filename
+    )
 
 # TTS 合成端点（需要参考音频）
 @app.post("/tts")
@@ -238,8 +254,6 @@ async def tts_synthesis(request: TTSRequest):
         return FileResponse(output_path, media_type="audio/wav", filename="generated.wav")
     
     except Exception as e:
-        import traceback
-        traceback.print_stack()
         raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {str(e)}")
 
 if __name__ == "__main__":
